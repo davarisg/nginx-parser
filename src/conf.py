@@ -1,0 +1,22 @@
+# Keyboard Shortcut names
+DETAILS_PAGE_NAME = 'Details'
+MAIN_PAGE_NAME = 'General'
+REFERRERS_PAGE_NAME = 'Referrers'
+USER_AGENT_PAGE_NAME = 'User Agent'
+QUIT_NAME = 'Quit'
+
+# Keyboard Shortcuts
+DETAILS_PAGE_KEY = 'd'
+MAIN_PAGE_KEY = 'm'
+REFERRERS_PAGE_KEY = 'r'
+USER_AGENT_PAGE_KEY = 'u'
+QUIT_KEY = 'q'
+
+
+# Available keyboard actions
+PAGES = {
+    DETAILS_PAGE_KEY: DETAILS_PAGE_NAME,
+    MAIN_PAGE_KEY: MAIN_PAGE_NAME,
+    REFERRERS_PAGE_KEY: REFERRERS_PAGE_NAME,
+    USER_AGENT_PAGE_KEY: USER_AGENT_PAGE_NAME,
+}

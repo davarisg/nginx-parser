@@ -1,42 +1,13 @@
-import argparse
-import shlex
-import subprocess
-import sys
-
-from blessed import Terminal
-
-from store import Store
-from threading import Thread, Lock
-
-# TODO: Create constants for keys
-# TODO: Move this to conf
-DETAILS_PAGE = 'details'
-MAIN_PAGE = 'general'
-REFERRERS_PAGE = 'referrers'
-USER_AGENT_PAGE = 'user_agent'
-
-ACTIVE_PAGES = (
-    DETAILS_PAGE,
-    MAIN_PAGE,
-    REFERRERS_PAGE,
-    USER_AGENT_PAGE
-)
+from conf import DETAILS_PAGE_NAME, USER_AGENT_PAGE_NAME, REFERRERS_PAGE_NAME, PAGES
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--log-file', type=str, help='')
-parser.add_argument('--delay', type=str, help='')
-parser.add_argument('-n', type=str, help='')
-args = parser.parse_args()
-
-
-class Parseinator(object):
-    def __init__(self, _args):
-        self.active_page = DETAILS_PAGE
-        self.args = _args
-        self.lock = Lock()
-        self.store = Store()
-        self.terminal = Terminal()
+class Picasso(object):
+    def __init__(self, args, lock, store, terminal):
+        self.active_page = DETAILS_PAGE_NAME
+        self.args = args
+        self.lock = lock
+        self.store = store
+        self.terminal = terminal
 
     @staticmethod
     def spaces(n):
@@ -59,7 +30,7 @@ class Parseinator(object):
             )
         )
 
-        if self.active_page == USER_AGENT_PAGE:
+        if self.active_page == USER_AGENT_PAGE_NAME:
             print(
                 self.terminal.move_y(3) +
                 self.terminal.move_x(2) +
@@ -72,7 +43,7 @@ class Parseinator(object):
                 if pct > 5:
                     txt = self.terminal.red("%s -> %.2f%%") % (user_agent, pct)
                 print(self.terminal.move_y(4 + index) + self.terminal.move_x(2) + txt)
-        elif self.active_page == REFERRERS_PAGE:
+        elif self.active_page == REFERRERS_PAGE_NAME:
             print(
                 self.terminal.move_y(3) +
                 self.terminal.move_x(2) +
@@ -85,7 +56,7 @@ class Parseinator(object):
                 if pct > 5:
                     txt = self.terminal.red("%s -> %.2f%%") % (referrer, pct)
                 print(self.terminal.move_y(4 + index) + self.terminal.move_x(2) + txt)
-        elif self.active_page == DETAILS_PAGE:
+        elif self.active_page == DETAILS_PAGE_NAME:
             print(
                 self.terminal.move_y(3) +
                 self.terminal.move_x(2) +
@@ -157,77 +128,19 @@ class Parseinator(object):
                     "%4s -> %.2f%%" % (country, count / float(total) * 100)
                 )
 
-        details = 'd: Detail'
-        if self.active_page == DETAILS_PAGE:
-            details = self.terminal.bold(details)
-        main = 'm: Main'
-        if self.active_page == MAIN_PAGE:
-            main = self.terminal.bold(main)
-        referrers = 'r: Referrers'
-        if self.active_page == REFERRERS_PAGE:
-            referrers = self.terminal.bold(referrers)
-        user_agents = 'u: User Agents'
-        if self.active_page == USER_AGENT_PAGE:
-            user_agents = self.terminal.bold(user_agents)
-        print(
-            self.terminal.move_y(max_y - 2) +
-            self.terminal.move_x(0) +
-            main + " | " +
-            details + " | " +
-            referrers + " | " +
-            user_agents
-        )
+        # Render footer
+        text = ''
+        for page_key in sorted(PAGES):
+            title = '%s: %s' % (page_key, PAGES[page_key])
+            if self.active_page == PAGES[page_key]:
+                text += self.terminal.bold(title)
+            else:
+                text += title
+            text += ' | '
+        print(self.terminal.move_y(max_y - 2) + self.terminal.move_x(0) + text + 'q: Quit')
+
+        # Release the lock
         self.lock.release()
 
-    def start(self):
-        thread = Thread(target=self.parse)
-        thread.setDaemon(True)
-        thread.start()
-        with self.terminal.fullscreen(), \
-             self.terminal.hidden_cursor(), \
-             self.terminal.keypad(), \
-             self.terminal.cbreak():
-            while True:
-                self.paint()
-
-                key = self.terminal.inkey(timeout=1)
-                if key == 'u':
-                    self.active_page = USER_AGENT_PAGE
-                if key == 'r':
-                    self.active_page = REFERRERS_PAGE
-                if key == 'm':
-                    self.active_page = MAIN_PAGE
-                if key == 'd':
-                    self.active_page = DETAILS_PAGE
-                if key == 'q':
-                    sys.exit()
-
-    def parse(self):
-        f = subprocess.Popen(
-            ['tail', '-n', self.args.n, '-F', self.args.log_file],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-
-        while True:
-            line = f.stdout.readline()
-            data = shlex.split(line.decode("utf-8"))
-
-            self.lock.acquire()
-            self.store.add_country(data[4])
-            self.store.add_ip(data[5])
-            self.store.add_log_line()
-            self.store.add_org(data[21])
-            self.store.add_referrer(data[13])
-            self.store.add_rmp(data[0])
-            self.store.add_status_code(data[11])
-            self.store.add_url_name(data[7])
-            self.store.add_url_path(data[9])
-            self.store.add_user_agent(data[14])
-
-            self.store.add_detail(data[9], data[5], data[11])
-            self.lock.release()
-
-
-if __name__ == '__main__':
-    Parseinator(args).start()
+    def set_active_page(self, page):
+        self.active_page = page

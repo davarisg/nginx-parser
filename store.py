@@ -1,11 +1,9 @@
 from collections import defaultdict
 from datetime import datetime
-from threading import Lock
 
 
 class Store(object):
     def __init__(self):
-        self.lock = Lock()
         self.log_lines = 0
         self.detail = defaultdict(dict)
         self.countries = defaultdict(int)
@@ -34,14 +32,12 @@ class Store(object):
         )
 
     def add_detail(self, url, ip, status_code):
-        self.lock.acquire()
         if ip not in self.detail[url]:
             self.detail[url][ip] = defaultdict(int)
         self.detail[url][ip]["%sx" % status_code[:2]] += 1
 
         if self.log_lines % 1000 == 0:
             self.accumulate_details_page()
-        self.lock.release()
 
     def add_country(self, country):
         self.countries[country] += 1

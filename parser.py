@@ -6,8 +6,7 @@ import sys
 from blessed import Terminal
 
 from store import Store
-from threading import Thread
-
+from threading import Thread, Lock
 
 # TODO: Create constants for keys
 # TODO: Move this to conf
@@ -35,14 +34,19 @@ class Parseinator(object):
     def __init__(self, _args):
         self.active_page = DETAILS_PAGE
         self.args = _args
+        self.lock = Lock()
         self.store = Store()
         self.terminal = Terminal()
+
+    @staticmethod
+    def spaces(n):
+        return " " * n
 
     def paint(self):
         max_y, max_x = self.terminal.height, self.terminal.width
         max_columns = max_y - 5
 
-        self.store.lock.acquire()
+        self.lock.acquire()
         print(self.terminal.clear())
         print(
             self.terminal.move_y(0) +
@@ -82,33 +86,30 @@ class Parseinator(object):
                     txt = self.terminal.red("%s -> %.2f%%") % (referrer, pct)
                 print(self.terminal.move_y(4 + index) + self.terminal.move_x(2) + txt)
         elif self.active_page == DETAILS_PAGE:
-            def spaces(n):
-                return " " * n
             print(
                 self.terminal.move_y(3) +
                 self.terminal.move_x(2) +
                 self.terminal.bold(
-                    'URL' + spaces(100) +
-                    '|  IP' + spaces(40) +
-                    '|  20x' + spaces(10) +
-                    '|  30x' + spaces(10) +
-                    '|  40x' + spaces(10) +
-                    '|  50x' + spaces(10) +
+                    'URL' + self.spaces(100) +
+                    '|  IP' + self.spaces(40) +
+                    '|  20x' + self.spaces(10) +
+                    '|  30x' + self.spaces(10) +
+                    '|  40x' + self.spaces(10) +
+                    '|  50x' + self.spaces(10) +
                     '|'
                 )
             )
 
-            # Convert
             for index, ((url_path, ip), status_codes) in enumerate(self.store.url_and_ips_by_status_code[:max_columns - 2]):
                 print(
                     self.terminal.move_y(4 + index) +
                     self.terminal.move_x(2) +
-                    (url_path + spaces(103))[:103] + '| ' +
-                    (ip + spaces(43))[:43] + '| ' +
-                    (str(status_codes['20x']) + spaces(14))[:14] + '| ' +
-                    (str(status_codes['30x']) + spaces(14))[:14] + '| ' +
-                    (str(status_codes['40x']) + spaces(14))[:14] + '| ' +
-                    (str(status_codes['50x']) + spaces(14))[:14] + '| '
+                    (url_path + self.spaces(103))[:103] + '| ' +
+                    (ip + self.spaces(43))[:43] + '| ' +
+                    (str(status_codes['20x']) + self.spaces(14))[:14] + '| ' +
+                    (str(status_codes['30x']) + self.spaces(14))[:14] + '| ' +
+                    (str(status_codes['40x']) + self.spaces(14))[:14] + '| ' +
+                    (str(status_codes['50x']) + self.spaces(14))[:14] + '| '
                 )
         else:
             print(self.terminal.move_y(3) + self.terminal.move_x(2) + self.terminal.bold("Status Codes:"))
@@ -176,7 +177,7 @@ class Parseinator(object):
             referrers + " | " +
             user_agents
         )
-        self.store.lock.release()
+        self.lock.release()
 
     def start(self):
         thread = Thread(target=self.parse)
@@ -212,6 +213,7 @@ class Parseinator(object):
             line = f.stdout.readline()
             data = shlex.split(line.decode("utf-8"))
 
+            self.lock.acquire()
             self.store.add_country(data[4])
             self.store.add_ip(data[5])
             self.store.add_log_line()
@@ -224,6 +226,7 @@ class Parseinator(object):
             self.store.add_user_agent(data[14])
 
             self.store.add_detail(data[9], data[5], data[11])
+            self.lock.release()
 
 
 if __name__ == '__main__':

@@ -4,12 +4,10 @@ import subprocess
 import sys
 
 from blessed import Terminal
-from copy import copy
 
 from store import Store
 from threading import Thread
 
-# TODO: Make store generate presentational data every x lines
 
 # TODO: Create constants for keys
 # TODO: Move this to conf
@@ -44,17 +42,11 @@ class Parseinator(object):
         max_y, max_x = self.terminal.height, self.terminal.width
         max_columns = max_y - 5
 
+        self.store.lock.acquire()
         print(self.terminal.clear())
-        # print(self.terminal.move_y(self.terminal.height // 2) + self.terminal.center('press any key').rstrip())
-        # print(self.terminal.move_y(self.terminal.height // 2) + "HI")
-        # print(self.terminal.move_y(self.terminal.height // 2 + 1) + str(time.time()))
-
         print(
             self.terminal.move_y(0) +
-            self.terminal.bold('Parseinator is tailing "%s"' % self.args.log_file)
-        )
-        print(
-            self.terminal.move_y(1) +
+            self.terminal.bold('Parseinator is tailing "%s"\n' % self.args.log_file) +
             self.terminal.bold(
                 'Processed %d lines / %d requests per minute' % (
                     self.store.log_lines,
@@ -70,7 +62,7 @@ class Parseinator(object):
                 self.terminal.bold("User agents:")
             )
             total = sum(self.store.status_codes.values())
-            for index, (user_agent, count) in enumerate(sorted(self.store.user_agents.items(), key=lambda k: k[1], reverse=True)[:max_columns]):
+            for index, (user_agent, count) in enumerate(sorted(self.store.user_agents.items(), key=lambda k: k[1], reverse=True)[:max_columns - 2]):
                 pct = count / float(total) * 100
                 txt = "%s -> %.2f%%" % (user_agent, pct)
                 if pct > 5:
@@ -83,7 +75,7 @@ class Parseinator(object):
                 self.terminal.bold("Referrers:")
             )
             total = sum(self.store.status_codes.values())
-            for index, (referrer, count) in enumerate(sorted(self.store.referrers.items(), key=lambda k: k[1], reverse=True)[:max_columns]):
+            for index, (referrer, count) in enumerate(sorted(self.store.referrers.items(), key=lambda k: k[1], reverse=True)[:max_columns - 2]):
                 pct = count / float(total) * 100
                 txt = "%s -> %.2f%%" % (referrer, pct)
                 if pct > 5:
@@ -107,16 +99,7 @@ class Parseinator(object):
             )
 
             # Convert
-            self.store.lock.acquire()
-            detail = copy(self.store.detail)
-            self.store.lock.release()
-            url_ips = {}
-            for url_path, ips in sorted(detail.items(), key=lambda k: sum([_c for c in k[1].values() for _c in c.values()]), reverse=True):
-                for ip, status_codes in ips.items():
-                    url_ips[(url_path, ip)] = status_codes
-            for index, ((url_path, ip), status_codes) in enumerate(sorted(url_ips.items(), key=lambda k: sum([c for c in k[1].values()]), reverse=True)):
-                if index + 1 == max_columns:
-                    break
+            for index, ((url_path, ip), status_codes) in enumerate(self.store.url_and_ips_by_status_code[:max_columns - 2]):
                 print(
                     self.terminal.move_y(4 + index) +
                     self.terminal.move_x(2) +
@@ -128,7 +111,6 @@ class Parseinator(object):
                     (str(status_codes['50x']) + spaces(14))[:14] + '| '
                 )
         else:
-            # TODO: Check if screen size is big enough to show these
             print(self.terminal.move_y(3) + self.terminal.move_x(2) + self.terminal.bold("Status Codes:"))
             total = sum(self.store.status_codes.values())
             for index, (status_code, count) in enumerate(sorted(self.store.status_codes.items(), key=lambda k: k[1], reverse=True)):
@@ -140,7 +122,7 @@ class Parseinator(object):
 
             print(self.terminal.move_y(3) + self.terminal.move_x(40) + self.terminal.bold("URL names:"))
             total = sum(self.store.url_names.values())
-            for index, (url_name, count) in enumerate(sorted(self.store.url_names.items(), key=lambda k: k[1], reverse=True)[:max_columns]):
+            for index, (url_name, count) in enumerate(sorted(self.store.url_names.items(), key=lambda k: k[1], reverse=True)[:max_columns - 2]):
                 print(
                     self.terminal.move_y(4 + index) +
                     self.terminal.move_x(23) +
@@ -149,7 +131,7 @@ class Parseinator(object):
 
             print(self.terminal.move_y(3) + self.terminal.move_x(77) + self.terminal.bold("IPs:"))
             total = sum(self.store.url_names.values())
-            for index, (ip, count) in enumerate(sorted(self.store.ips.items(), key=lambda k: k[1], reverse=True)[:max_columns]):
+            for index, (ip, count) in enumerate(sorted(self.store.ips.items(), key=lambda k: k[1], reverse=True)[:max_columns - 2]):
                 print(
                     self.terminal.move_y(4 + index) +
                     self.terminal.move_x(67) +
@@ -158,7 +140,7 @@ class Parseinator(object):
 
             print(self.terminal.move_y(3) + self.terminal.move_x(107) + self.terminal.bold("ORGs:"))
             total = sum(self.store.url_names.values())
-            for index, (org, count) in enumerate(sorted(self.store.orgs.items(), key=lambda k: k[1], reverse=True)[:max_columns]):
+            for index, (org, count) in enumerate(sorted(self.store.orgs.items(), key=lambda k: k[1], reverse=True)[:max_columns - 2]):
                 print(
                     self.terminal.move_y(4 + index) +
                     self.terminal.move_x(97) +
@@ -167,15 +149,34 @@ class Parseinator(object):
 
             print(self.terminal.move_y(3) + self.terminal.move_x(137) + self.terminal.bold("Countries:"))
             total = sum(self.store.url_names.values())
-            for index, (country, count) in enumerate(sorted(self.store.countries.items(), key=lambda k: k[1], reverse=True)[:max_columns]):
+            for index, (country, count) in enumerate(sorted(self.store.countries.items(), key=lambda k: k[1], reverse=True)[:max_columns - 2]):
                 print(
                     self.terminal.move_y(4 + index) +
                     self.terminal.move_x(135) +
                     "%4s -> %.2f%%" % (country, count / float(total) * 100)
                 )
 
-        # TODO: Bold selected window
-        print(self.terminal.move_y(max_y) + self.terminal.move_x(0) + "m: Main" + " | " + "r: Referrers" + " | " + "u: User Agents")
+        details = 'd: Detail'
+        if self.active_page == DETAILS_PAGE:
+            details = self.terminal.bold(details)
+        main = 'm: Main'
+        if self.active_page == MAIN_PAGE:
+            main = self.terminal.bold(main)
+        referrers = 'r: Referrers'
+        if self.active_page == REFERRERS_PAGE:
+            referrers = self.terminal.bold(referrers)
+        user_agents = 'u: User Agents'
+        if self.active_page == USER_AGENT_PAGE:
+            user_agents = self.terminal.bold(user_agents)
+        print(
+            self.terminal.move_y(max_y - 2) +
+            self.terminal.move_x(0) +
+            main + " | " +
+            details + " | " +
+            referrers + " | " +
+            user_agents
+        )
+        self.store.lock.release()
 
     def start(self):
         thread = Thread(target=self.parse)

@@ -18,11 +18,29 @@ class Store(object):
         self.url_paths = defaultdict(int)
         self.user_agents = defaultdict(int)
 
+        # Accumulators
+        self.url_and_ips_by_status_code = []
+
+    def accumulate_details_page(self):
+        url_and_ips_by_status_code = {}
+        for url_path, ips in sorted(self.detail.items(), key=lambda k: sum([_c for c in k[1].values() for _c in c.values()]), reverse=True):
+            for ip, status_codes in ips.items():
+                url_and_ips_by_status_code[(url_path, ip)] = status_codes
+
+        self.url_and_ips_by_status_code = sorted(
+            url_and_ips_by_status_code.items(),
+            key=lambda k: sum([c for c in k[1].values()]),
+            reverse=True
+        )
+
     def add_detail(self, url, ip, status_code):
         self.lock.acquire()
         if ip not in self.detail[url]:
             self.detail[url][ip] = defaultdict(int)
         self.detail[url][ip]["%sx" % status_code[:2]] += 1
+
+        if self.log_lines % 1000 == 0:
+            self.accumulate_details_page()
         self.lock.release()
 
     def add_country(self, country):

@@ -12,9 +12,9 @@ from threading import Thread, Lock
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--log-file', type=str, help='')
-parser.add_argument('--delay', type=str, help='')
-parser.add_argument('-n', type=str, help='')
+parser.add_argument('-f', '--file', type=str, help='The path to the Nginx log file')
+parser.add_argument('-d', '--delay', type=int, default=1, help='Seconds to wait between updates')
+parser.add_argument('-n', type=str, default='1000', help='Number of lines to start tailing from')
 args = parser.parse_args()
 
 
@@ -37,7 +37,7 @@ class Viewer(object):
             while True:
                 self.picasso.paint()
 
-                key = self.terminal.inkey(timeout=1)
+                key = self.terminal.inkey(timeout=self.args.delay)
                 if key in PAGES.keys():
                     self.picasso.set_active_page(PAGES[key])
                 if key == QUIT_KEY:
@@ -45,7 +45,7 @@ class Viewer(object):
 
     def tail(self):
         f = subprocess.Popen(
-            ['tail', '-n', self.args.n, '-F', self.args.log_file],
+            ['tail', '-n', self.args.n, '-F', self.args.file],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )

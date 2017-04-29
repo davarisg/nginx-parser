@@ -21,7 +21,7 @@ class Picasso(object):
         print(self.terminal.clear())
         print(
             self.terminal.move_y(0) +
-            self.terminal.bold('Parseinator is tailing "%s"\n' % self.args.log_file) +
+            self.terminal.bold('Nginx viewer is tailing "%s"\n' % self.args.file) +
             self.terminal.bold(
                 'Processed %d lines / %d requests per minute' % (
                     self.store.log_lines,

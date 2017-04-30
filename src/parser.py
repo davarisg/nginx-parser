@@ -17,7 +17,7 @@ parser.add_argument('-n', type=str, default='1000', help='Number of lines to sta
 args = parser.parse_args()
 
 
-class Viewer(object):
+class Parser(object):
     def __init__(self):
         self.lock = Lock()
         self.store = Store()
@@ -57,4 +57,4 @@ class Viewer(object):
 
 
 if __name__ == '__main__':
-    Viewer().start()
+    Parser().start()

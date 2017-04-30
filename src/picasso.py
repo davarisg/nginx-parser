@@ -2,7 +2,6 @@ import conf
 
 
 # TODO: Better visualizations/graph
-# TODO: Elipsis
 
 HIGH_THRESHOLD = 7
 MEDIUM_THRESHOLD = 5
@@ -26,6 +25,12 @@ class Picasso(object):
         :param spaces: The number of spaces to append.
         """
         return ("%s%s" % (string, " " * spaces))[:spaces]
+
+    @staticmethod
+    def ellipsis(string, n):
+        if len(string) > n - 15:
+            return "%s..." % string[:n-15]
+        return string
 
     def set_active_page(self, page):
         self.active_page = page
@@ -54,11 +59,11 @@ class Picasso(object):
         )
 
         if self.active_page == conf.USER_AGENT_PAGE_NAME:  # User Agent page
-            self._paint_page('User agents', self.store.user_agents)
+            self._paint_page('User agents', self.store.user_agents, max_x)
         elif self.active_page == conf.URL_PAGE_NAME:  # URL page
-            self._paint_page('URLs', self.store.url_paths)
+            self._paint_page('URLs', self.store.url_paths, max_x)
         elif self.active_page == conf.REFERRERS_PAGE_NAME:  # Referrers page
-            self._paint_page('Referrers', self.store.referrers)
+            self._paint_page('Referrers', self.store.referrers, max_x)
         elif self.active_page == conf.DETAILS_PAGE_NAME:  # Details page
             # Render column titles
             print(
@@ -104,14 +109,14 @@ class Picasso(object):
         # Release the lock
         self.lock.release()
 
-    def _paint_column(self, store_data, current_x):
+    def _paint_column(self, store_data, current_x, width):
         """
         Paints a column of data on the terminal window.
         """
         total = sum(store_data.values())
         for index, (value, count) in enumerate(sorted(store_data.items(), key=lambda k: k[1], reverse=True)[:self.max_rows - 2]):
             pct = count / float(total) * 100
-            txt = "%s -> %.2f%%" % (value, pct)
+            txt = "%s -> %.2f%%" % (self.ellipsis(value, width), pct)
             if pct > HIGH_THRESHOLD:
                 txt = self.terminal.bright_red(txt)
             elif pct > MEDIUM_THRESHOLD:
@@ -133,7 +138,11 @@ class Picasso(object):
             self.terminal.move_x(current_x + (width // 2) - 10) +
             self.terminal.bold("%s:" % title)
         )
-        self._paint_column(store_data, current_x)
+        self._paint_column(store_data, current_x, width)
+
+    def _paint_page(self, title, store_data, max_x):
+        print(self.terminal.move_y(3) + self.terminal.move_x(2) + self.terminal.bold("%s:" % title))
+        self._paint_column(store_data, 2, max_x)
 
     def _paint_footer(self, max_y):
         """
@@ -149,7 +158,3 @@ class Picasso(object):
                 text += title
             text += ' | '
         print(self.terminal.move_y(max_y - 2) + self.terminal.move_x(0) + text + 'q: Quit')
-
-    def _paint_page(self, title, store_data):
-        print(self.terminal.move_y(3) + self.terminal.move_x(2) + self.terminal.bold("%s:" % title))
-        self._paint_column(store_data, 2)

@@ -2,6 +2,10 @@ import conf
 from conf import DETAILS_PAGE_NAME, USER_AGENT_PAGE_NAME, REFERRERS_PAGE_NAME, PAGES
 
 
+# TODO: Better visualizations/graph
+# TODO: Colors for important values
+# TODO: Abstract printing columns in main page
+
 class Picasso(object):
     def __init__(self, args, lock, store, terminal):
         self.active_page = DETAILS_PAGE_NAME
@@ -32,31 +36,11 @@ class Picasso(object):
         )
 
         if self.active_page == USER_AGENT_PAGE_NAME:
-            print(
-                self.terminal.move_y(3) +
-                self.terminal.move_x(2) +
-                self.terminal.bold("User agents:")
-            )
-            total = sum(self.store.status_codes.values())
-            for index, (user_agent, count) in enumerate(sorted(self.store.user_agents.items(), key=lambda k: k[1], reverse=True)[:max_columns - 2]):
-                pct = count / float(total) * 100
-                txt = "%s -> %.2f%%" % (user_agent, pct)
-                if pct > 5:
-                    txt = self.terminal.red("%s -> %.2f%%") % (user_agent, pct)
-                print(self.terminal.move_y(4 + index) + self.terminal.move_x(2) + txt)
+            self.paint_page('User agents', self.store.user_agents, max_columns)
+        elif self.active_page == conf.URL_PAGE_NAME:
+            self.paint_page('URLs', self.store.url_paths, max_columns)
         elif self.active_page == REFERRERS_PAGE_NAME:
-            print(
-                self.terminal.move_y(3) +
-                self.terminal.move_x(2) +
-                self.terminal.bold("Referrers:")
-            )
-            total = sum(self.store.status_codes.values())
-            for index, (referrer, count) in enumerate(sorted(self.store.referrers.items(), key=lambda k: k[1], reverse=True)[:max_columns - 2]):
-                pct = count / float(total) * 100
-                txt = "%s -> %.2f%%" % (referrer, pct)
-                if pct > 5:
-                    txt = self.terminal.red("%s -> %.2f%%") % (referrer, pct)
-                print(self.terminal.move_y(4 + index) + self.terminal.move_x(2) + txt)
+            self.paint_page('Referrers', self.store.referrers, max_columns)
         elif self.active_page == DETAILS_PAGE_NAME:
             print(
                 self.terminal.move_y(3) +
@@ -119,7 +103,6 @@ class Picasso(object):
 
                 current_x += detail['width']
 
-
         # Render footer
         text = ''
         for page_key in sorted(PAGES):
@@ -133,6 +116,21 @@ class Picasso(object):
 
         # Release the lock
         self.lock.release()
+
+    def paint_page(self, title, data, max_columns):
+        print(
+            self.terminal.move_y(3) +
+            self.terminal.move_x(2) +
+            self.terminal.bold("%s:" % title)
+        )
+        total = sum(data.values())
+        for index, (key, count) in enumerate(
+                sorted(data.items(), key=lambda k: k[1], reverse=True)[:max_columns - 2]):
+            pct = count / float(total) * 100
+            txt = "%s -> %.2f%%" % (key, pct)
+            if pct > 5:
+                txt = self.terminal.red("%s -> %.2f%%") % (key, pct)
+            print(self.terminal.move_y(4 + index) + self.terminal.move_x(2) + txt)
 
     def set_active_page(self, page):
         self.active_page = page

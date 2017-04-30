@@ -1,10 +1,12 @@
 import conf
+import re
 
 from collections import defaultdict
 from datetime import datetime
 
 
-# TODO: Handle `request` variable in Nginx log_format
+REQUEST_RE = re.compile(r'^\w+\s(.+)\s')
+
 
 class Store(object):
     def __init__(self):
@@ -25,15 +27,24 @@ class Store(object):
         """
         Takes a log line split by shlex and updates counters
         """
+        # Special case for $request variable ("$method $url_path $server_protocol"). Extract the URL path only.
+        request = data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES[conf.NGINX_LOG_FORMAT_REQUEST_VARIABLE]]
+        url_path = request
+        if conf.NGINX_LOG_FORMAT_REQUEST_VARIABLE == 'request':
+            try:
+                url_path = REQUEST_RE.search(request).groups()[0]
+            except AttributeError:
+                pass
+
         self.add_log_line()
         self.add_ip(data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['remote_addr']])
         self.add_referrer(data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['http_referer']])
         self.add_rmp(data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['time_local']])
         self.add_status_code(data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['status']])
-        self.add_url_path(data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['request_uri']])
+        self.add_url_path(url_path)
         self.add_user_agent(data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['http_user_agent']])
         self.add_detail(
-            data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['request_uri']],
+            url_path,
             data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['remote_addr']],
             data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['status']]
         )

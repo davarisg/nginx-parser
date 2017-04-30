@@ -37,10 +37,11 @@ NGINX_LOG_FORMAT_DEFAULT_VARIABLES = {
     'remote_addr': 'IP',
     'http_referer': 'Referrer',
     'status': 'Status Code',
-    'request_uri': 'Request',
     'http_user_agent': 'HTTP User Agent',
     'time_local': 'Time'
 }
+
+NGINX_LOG_FORMAT_REQUEST_VARIABLE = 'request_uri'
 
 NGINX_LOG_FORMAT_EXTRA_VARIABLES = {
     'upstream_http_x_mixcloud_country_code': {'title': 'Countries', 'width': 20},
@@ -58,5 +59,6 @@ for index, variable in enumerate(shlex.split(NGINX_LOG_FORMAT.strip())):
     except AttributeError:
         pass
     if cleaned_variable in NGINX_LOG_FORMAT_DEFAULT_VARIABLES.keys() or \
-       cleaned_variable in NGINX_LOG_FORMAT_EXTRA_VARIABLES.keys():
+       cleaned_variable in NGINX_LOG_FORMAT_EXTRA_VARIABLES.keys() or \
+       cleaned_variable == NGINX_LOG_FORMAT_REQUEST_VARIABLE:
         NGINX_LOG_FORMAT_VARIABLE_INDICES[cleaned_variable] = index

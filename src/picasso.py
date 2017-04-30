@@ -2,7 +2,6 @@ import conf
 
 
 # TODO: Better visualizations/graph
-
 HIGH_THRESHOLD = 7
 MEDIUM_THRESHOLD = 5
 LOW_THRESHOLD = 3

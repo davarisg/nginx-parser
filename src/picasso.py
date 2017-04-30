@@ -1,15 +1,15 @@
 import conf
-from conf import DETAILS_PAGE_NAME, USER_AGENT_PAGE_NAME, REFERRERS_PAGE_NAME, PAGES
 
 
 # TODO: Better visualizations/graph
 # TODO: Colors for important values
-# TODO: Abstract printing columns in main page
+# TODO: Elipsis
 
 class Picasso(object):
     def __init__(self, args, lock, store, terminal):
-        self.active_page = DETAILS_PAGE_NAME
+        self.active_page = conf.DETAILS_PAGE_NAME
         self.args = args
+        self.max_columns = 0
         self.lock = lock
         self.store = store
         self.terminal = terminal
@@ -20,7 +20,7 @@ class Picasso(object):
 
     def paint(self):
         max_y, max_x = self.terminal.height, self.terminal.width
-        max_columns = max_y - 5
+        self.max_columns = max_y - 5
 
         self.lock.acquire()
         print(self.terminal.clear())
@@ -35,13 +35,13 @@ class Picasso(object):
             )
         )
 
-        if self.active_page == USER_AGENT_PAGE_NAME:
-            self.paint_page('User agents', self.store.user_agents, max_columns)
+        if self.active_page == conf.USER_AGENT_PAGE_NAME:
+            self.paint_page('User agents', self.store.user_agents)
         elif self.active_page == conf.URL_PAGE_NAME:
-            self.paint_page('URLs', self.store.url_paths, max_columns)
-        elif self.active_page == REFERRERS_PAGE_NAME:
-            self.paint_page('Referrers', self.store.referrers, max_columns)
-        elif self.active_page == DETAILS_PAGE_NAME:
+            self.paint_page('URLs', self.store.url_paths)
+        elif self.active_page == conf.REFERRERS_PAGE_NAME:
+            self.paint_page('Referrers', self.store.referrers)
+        elif self.active_page == conf.DETAILS_PAGE_NAME:
             print(
                 self.terminal.move_y(3) +
                 self.terminal.move_x(2) +
@@ -56,7 +56,7 @@ class Picasso(object):
                 )
             )
 
-            for index, ((url_path, ip), status_codes) in enumerate(self.store.url_and_ips_by_status_code[:max_columns - 2]):
+            for index, ((url_path, ip), status_codes) in enumerate(self.store.url_and_ips_by_status_code[:self.max_columns - 2]):
                 print(
                     self.terminal.move_y(4 + index) +
                     self.terminal.move_x(2) +
@@ -68,56 +68,49 @@ class Picasso(object):
                     (str(status_codes['50x']) + self.spaces(14))[:14] + '| '
                 )
         else:
-            print(self.terminal.move_y(3) + self.terminal.move_x(2) + self.terminal.bold("Status Codes:"))
-            total = sum(self.store.status_codes.values())
-            for index, (status_code, count) in enumerate(sorted(self.store.status_codes.items(), key=lambda k: k[1], reverse=True)):
-                print(
-                    self.terminal.move_y(4 + index) +
-                    self.terminal.move_x(2) +
-                    "%s -> %.2f%%" % (status_code, count / float(total) * 100)
-                )
-
-            print(self.terminal.move_y(3) + self.terminal.move_x(20) + self.terminal.bold("IPs:"))
-            total = sum(self.store.ips.values())
-            for index, (ip, count) in enumerate(sorted(self.store.ips.items(), key=lambda k: k[1], reverse=True)[:max_columns - 2]):
-                print(
-                    self.terminal.move_y(4 + index) +
-                    self.terminal.move_x(20) +
-                    "%16s -> %.2f%%" % (ip, count / float(total) * 100)
-                )
+            self.paint_main_page_section('Status Codes', self.store.status_codes, 20, 0)
+            self.paint_main_page_section('IP', self.store.ips, 50, 20)
 
             current_x = 70
             for variable in sorted(conf.NGINX_LOG_FORMAT_EXTRA_VARIABLES):
                 detail = conf.NGINX_LOG_FORMAT_EXTRA_VARIABLES[variable]
                 if variable not in self.store.extra:
                     continue
-                print(self.terminal.move_y(3) + self.terminal.move_x(current_x + (detail['width'] // 2) - 10) + self.terminal.bold("%s:" % detail['title']))
-                total = sum(self.store.extra[variable].values())
-                for index, (value, count) in enumerate(
-                        sorted(self.store.extra[variable].items(), key=lambda k: k[1], reverse=True)[:max_columns - 2]):
-                    print(
-                        self.terminal.move_y(4 + index) +
-                        self.terminal.move_x(current_x) +
-                        "%s -> %.2f%%" % (value, count / float(total) * 100)
-                    )
-
+                self.paint_main_page_section(detail['title'], self.store.extra[variable], detail['width'], current_x)
                 current_x += detail['width']
 
         # Render footer
+        self.paint_footer(max_y)
+
+        # Release the lock
+        self.lock.release()
+
+    def paint_main_page_section(self, title, store_data, width, current_x):
+        print(
+            self.terminal.move_y(3) +
+            self.terminal.move_x(current_x + (width // 2) - 10) +
+            self.terminal.bold("%s:" % title)
+        )
+        total = sum(store_data.values())
+        for index, (value, count) in enumerate(sorted(store_data.items(), key=lambda k: k[1], reverse=True)[:self.max_columns - 2]):
+            print(
+                self.terminal.move_y(4 + index) +
+                self.terminal.move_x(current_x) +
+                "%s -> %.2f%%" % (value, count / float(total) * 100)
+            )
+
+    def paint_footer(self, max_y):
         text = ''
-        for page_key in sorted(PAGES):
-            title = '%s: %s' % (page_key, PAGES[page_key])
-            if self.active_page == PAGES[page_key]:
+        for page_key in sorted(conf.PAGES):
+            title = '%s: %s' % (page_key, conf.PAGES[page_key])
+            if self.active_page == conf.PAGES[page_key]:
                 text += self.terminal.bold(title)
             else:
                 text += title
             text += ' | '
         print(self.terminal.move_y(max_y - 2) + self.terminal.move_x(0) + text + 'q: Quit')
 
-        # Release the lock
-        self.lock.release()
-
-    def paint_page(self, title, data, max_columns):
+    def paint_page(self, title, data):
         print(
             self.terminal.move_y(3) +
             self.terminal.move_x(2) +
@@ -125,7 +118,7 @@ class Picasso(object):
         )
         total = sum(data.values())
         for index, (key, count) in enumerate(
-                sorted(data.items(), key=lambda k: k[1], reverse=True)[:max_columns - 2]):
+                sorted(data.items(), key=lambda k: k[1], reverse=True)[:self.max_columns - 2]):
             pct = count / float(total) * 100
             txt = "%s -> %.2f%%" % (key, pct)
             if pct > 5:

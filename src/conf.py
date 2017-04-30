@@ -50,7 +50,7 @@ NGINX_LOG_FORMAT_EXTRA_VARIABLES = {
 
 NGINX_LOG_FORMAT_VARIABLE_INDICES = {}
 
-variable_re = re.compile('\$(\w+)')
+variable_re = re.compile('\$([\w\d]+)')
 for index, variable in enumerate(shlex.split(NGINX_LOG_FORMAT.strip())):
     cleaned_variable = variable
     try:

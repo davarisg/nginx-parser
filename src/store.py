@@ -31,7 +31,10 @@ class Store(object):
         """
         # Replace brackets with double quotes because shlex does not strip them.
         line = re.sub("[\[|\]]", '"', line.decode("utf-8"))
-        data = shlex.split(line)
+        try:
+            data = shlex.split(line)
+        except Exception:
+            return
 
         # Special case for $request variable (which includes "$method $url_path $server_protocol").
         # Extract the $url_path only.

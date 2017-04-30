@@ -53,6 +53,7 @@ class Viewer(object):
             line = f.stdout.readline()
             data = shlex.split(line.decode("utf-8"))
 
+            # Grab the lock before we update our store as we don't want the data to change as we are painting.
             self.lock.acquire()
             self.store.aggregate(data)
             self.lock.release()

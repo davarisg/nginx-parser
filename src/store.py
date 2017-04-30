@@ -5,6 +5,7 @@ from datetime import datetime
 
 
 # TODO: Handle `request` variable in Nginx log_format
+
 class Store(object):
     def __init__(self):
         self.log_lines = 0
@@ -17,10 +18,13 @@ class Store(object):
         self.url_paths = defaultdict(int)
         self.user_agents = defaultdict(int)
 
-        # Accumulators
+        # Transforms
         self.url_and_ips_by_status_code = []
 
     def aggregate(self, data):
+        """
+        Takes a log line split by shlex and updates counters
+        """
         self.add_log_line()
         self.add_ip(data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['remote_addr']])
         self.add_referrer(data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['http_referer']])
@@ -28,17 +32,23 @@ class Store(object):
         self.add_status_code(data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['status']])
         self.add_url_path(data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['request_uri']])
         self.add_user_agent(data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['http_user_agent']])
-
-        for extra_variable in conf.NGINX_LOG_FORMAT_EXTRA_VARIABLES.keys():
-            self.add_extra(extra_variable, data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES[extra_variable]])
-
         self.add_detail(
             data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['request_uri']],
             data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['remote_addr']],
             data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['status']]
         )
 
-    def accumulate_details_page(self):
+        # Process extra Nginx variables (if any)
+        for extra_variable in conf.NGINX_LOG_FORMAT_EXTRA_VARIABLES.keys():
+            self.add_extra(extra_variable, data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES[extra_variable]])
+
+    def transform_details_page(self):
+        """
+        Transforms the detail dict from: {"url": {"ip": {"200": X}}...} to a sorted list
+        of [((url, ip), status_codes)...]
+
+        This is done to improve the speed of the paint method.
+        """
         url_and_ips_by_status_code = {}
         for url_path, ips in sorted(self.detail.items(), key=lambda k: sum([_c for c in k[1].values() for _c in c.values()]), reverse=True):
             for ip, status_codes in ips.items():
@@ -51,14 +61,20 @@ class Store(object):
         )
 
     def add_detail(self, url, ip, status_code):
+        """
+        Keeps track of status codes by url and IP address.
+        """
         if ip not in self.detail[url]:
             self.detail[url][ip] = defaultdict(int)
         self.detail[url][ip]["%sx" % status_code[:2]] += 1
 
         if self.log_lines % 1000 == 0:
-            self.accumulate_details_page()
+            self.transform_details_page()
 
     def add_extra(self, key, value):
+        """
+        Keeps track of any extra Nginx variables specified in the conf file.
+        """
         if key not in self.extra:
             self.extra[key] = defaultdict(int)
         self.extra[key][value] += 1
@@ -73,6 +89,9 @@ class Store(object):
         self.referrers[referrer] += 1
 
     def add_rmp(self, date):
+        """
+        Retrieve the hour and minute from time_local to calculate requests per minute
+        """
         date = datetime.strptime(date, "%d/%b/%Y:%H:%M:%S +0000")
         date_string = "%s:%s" % (date.hour, date.minute)
         self.rpm[date_string] += 1

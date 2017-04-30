@@ -1,9 +1,9 @@
 import conf
 
 
-# TODO: Comments
 # TODO: Better visualizations/graph
 # TODO: Elipsis
+
 HIGH_THRESHOLD = 7
 MEDIUM_THRESHOLD = 5
 LOW_THRESHOLD = 3
@@ -13,20 +13,34 @@ class Picasso(object):
     def __init__(self, args, lock, store, terminal):
         self.active_page = conf.DETAILS_PAGE_NAME
         self.args = args
-        self.max_columns = 0
+        self.max_rows = 0
         self.lock = lock
         self.store = store
         self.terminal = terminal
 
     @staticmethod
     def append_spaces(string, spaces):
+        """
+        Helper function to append spaces to the end of a string.
+        :param string: The string to append spaces to.
+        :param spaces: The number of spaces to append.
+        """
         return ("%s%s" % (string, " " * spaces))[:spaces]
 
-    def paint(self):
-        max_y, max_x = self.terminal.height, self.terminal.width
-        self.max_columns = max_y - 5
+    def set_active_page(self, page):
+        self.active_page = page
 
+    def paint(self):
+        """
+        Paints the appropriate page to the terminal
+        """
+        max_y, max_x = self.terminal.height, self.terminal.width
+        self.max_rows = max_y - 5
+
+        # Grab the lock before we paint as we don't want the store to update while painting.
         self.lock.acquire()
+
+        # Render header
         print(self.terminal.clear())
         print(
             self.terminal.move_y(0) +
@@ -39,13 +53,14 @@ class Picasso(object):
             )
         )
 
-        if self.active_page == conf.USER_AGENT_PAGE_NAME:
+        if self.active_page == conf.USER_AGENT_PAGE_NAME:  # User Agent page
             self._paint_page('User agents', self.store.user_agents)
-        elif self.active_page == conf.URL_PAGE_NAME:
+        elif self.active_page == conf.URL_PAGE_NAME:  # URL page
             self._paint_page('URLs', self.store.url_paths)
-        elif self.active_page == conf.REFERRERS_PAGE_NAME:
+        elif self.active_page == conf.REFERRERS_PAGE_NAME:  # Referrers page
             self._paint_page('Referrers', self.store.referrers)
-        elif self.active_page == conf.DETAILS_PAGE_NAME:
+        elif self.active_page == conf.DETAILS_PAGE_NAME:  # Details page
+            # Render column titles
             print(
                 self.terminal.move_y(3) +
                 self.terminal.move_x(2) +
@@ -59,7 +74,8 @@ class Picasso(object):
                 )
             )
 
-            for index, ((url_path, ip), status_codes) in enumerate(self.store.url_and_ips_by_status_code[:self.max_columns - 2]):
+            # Render columns
+            for index, ((url_path, ip), status_codes) in enumerate(self.store.url_and_ips_by_status_code[:self.max_rows - 2]):
                 print(
                     self.terminal.move_y(4 + index) +
                     self.terminal.move_x(2) +
@@ -70,7 +86,7 @@ class Picasso(object):
                     self.append_spaces(str(status_codes['40x']), 10) + '| ' +
                     self.append_spaces(str(status_codes['50x']), 10) + '| '
                 )
-        else:
+        else:  # Main Page
             self._paint_main_page_section('Status Codes', self.store.status_codes, 20, 0)
             self._paint_main_page_section('IP', self.store.ips, 50, 20)
 
@@ -88,12 +104,12 @@ class Picasso(object):
         # Release the lock
         self.lock.release()
 
-    def set_active_page(self, page):
-        self.active_page = page
-
     def _paint_column(self, store_data, current_x):
+        """
+        Paints a column of data on the terminal window.
+        """
         total = sum(store_data.values())
-        for index, (value, count) in enumerate(sorted(store_data.items(), key=lambda k: k[1], reverse=True)[:self.max_columns - 2]):
+        for index, (value, count) in enumerate(sorted(store_data.items(), key=lambda k: k[1], reverse=True)[:self.max_rows - 2]):
             pct = count / float(total) * 100
             txt = "%s -> %.2f%%" % (value, pct)
             if pct > HIGH_THRESHOLD:
@@ -105,6 +121,13 @@ class Picasso(object):
             print(self.terminal.move_y(4 + index) + self.terminal.move_x(current_x) + txt)
 
     def _paint_main_page_section(self, title, store_data, width, current_x):
+        """
+        Renders a section of the main page.
+        :param title: The title of the section
+        :param store_data: The data for the section
+        :param width: The width of the section
+        :param current_x: The current horizontal position
+        """
         print(
             self.terminal.move_y(3) +
             self.terminal.move_x(current_x + (width // 2) - 10) +
@@ -113,6 +136,10 @@ class Picasso(object):
         self._paint_column(store_data, current_x)
 
     def _paint_footer(self, max_y):
+        """
+        Renders the footer of the application
+        :param max_y: The maximum height of the terminal window
+        """
         text = ''
         for page_key in sorted(conf.PAGES):
             title = '%s: %s' % (page_key, conf.PAGES[page_key])

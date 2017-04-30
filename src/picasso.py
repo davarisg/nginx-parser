@@ -95,8 +95,8 @@ class Picasso(object):
             self._paint_main_page_section('IP', self.store.ips, 50, 20)
 
             current_x = 70
-            for variable in sorted(conf.NGINX_LOG_FORMAT_EXTRA_VARIABLES):
-                detail = conf.NGINX_LOG_FORMAT_EXTRA_VARIABLES[variable]
+            for variable in sorted(conf.NGINX_LOG_EXTRA_VARIABLES):
+                detail = conf.NGINX_LOG_EXTRA_VARIABLES[variable]
                 if variable not in self.store.extra:
                     continue
                 self._paint_main_page_section(detail['title'], self.store.extra[variable], detail['width'], current_x)

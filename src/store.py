@@ -1,3 +1,5 @@
+import shlex
+
 import conf
 import re
 
@@ -23,14 +25,19 @@ class Store(object):
         # Transforms
         self.url_and_ips_by_status_code = []
 
-    def aggregate(self, data):
+    def aggregate(self, line):
         """
         Takes a log line split by shlex and updates counters
         """
-        # Special case for $request variable ("$method $url_path $server_protocol"). Extract the URL path only.
-        request = data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES[conf.NGINX_LOG_FORMAT_REQUEST_VARIABLE]]
+        # Replace brackets with double quotes because shlex does not strip them.
+        line = re.sub("[\[|\]]", '"', line.decode("utf-8"))
+        data = shlex.split(line)
+
+        # Special case for $request variable (which includes "$method $url_path $server_protocol").
+        # Extract the $url_path only.
+        request = data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES[conf.NGINX_LOG_REQUEST_VARIABLE]]
         url_path = request
-        if conf.NGINX_LOG_FORMAT_REQUEST_VARIABLE == 'request':
+        if conf.NGINX_LOG_REQUEST_VARIABLE == 'request':
             try:
                 url_path = REQUEST_RE.search(request).groups()[0]
             except AttributeError:
@@ -50,7 +57,7 @@ class Store(object):
         )
 
         # Process extra Nginx variables (if any)
-        for extra_variable in conf.NGINX_LOG_FORMAT_EXTRA_VARIABLES.keys():
+        for extra_variable in conf.NGINX_LOG_EXTRA_VARIABLES.keys():
             self.add_extra(extra_variable, data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES[extra_variable]])
 
     def transform_details_page(self):
@@ -103,7 +110,7 @@ class Store(object):
         """
         Retrieve the hour and minute from time_local to calculate requests per minute
         """
-        date = datetime.strptime(date, "%d/%b/%Y:%H:%M:%S +0000")
+        date = datetime.strptime(date, conf.NGINX_LOG_TIME_LOCAL_FORMAT)
         date_string = "%s:%s" % (date.hour, date.minute)
         self.rpm[date_string] += 1
 

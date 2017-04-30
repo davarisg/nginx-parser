@@ -30,10 +30,10 @@ PAGES = {
 
 
 NGINX_LOG_FORMAT = """
-"$time_local" $upstream_http_x_mixcloud_request_uuid $upstream_http_x_mixcloud_session $request_time $upstream_http_x_mixcloud_country_code $remote_addr $upstream_http_x_mixcloud_user $upstream_http_x_mixcloud_view_name $request_method "$request_uri" $server_protocol $status $body_bytes_sent "$http_referer" "$http_user_agent" "$upstream_addr" "$upstream_response_time" "$upstream_status" "$upstream_http_x_speedbar_sql_count" "$scheme" "$http2" "$geoip_org"
+    $remote_addr - $remote_user [$time_local] "$request" $status $bytes_sent "$http_referer" "$http_user_agent" "$gzip_ratio"
 """
 
-NGINX_LOG_FORMAT_DEFAULT_VARIABLES = {
+NGINX_LOG_DEFAULT_VARIABLES = {
     'remote_addr': 'IP',
     'http_referer': 'Referrer',
     'status': 'Status Code',
@@ -41,13 +41,10 @@ NGINX_LOG_FORMAT_DEFAULT_VARIABLES = {
     'time_local': 'Time'
 }
 
-NGINX_LOG_FORMAT_REQUEST_VARIABLE = 'request_uri'
+NGINX_LOG_REQUEST_VARIABLE = 'request'
+NGINX_LOG_TIME_LOCAL_FORMAT = '%d/%b/%Y:%H:%M:%S +0000'
 
-NGINX_LOG_FORMAT_EXTRA_VARIABLES = {
-    'upstream_http_x_mixcloud_country_code': {'title': 'Countries', 'width': 20},
-    'geoip_org': {'title': 'ORGs', 'width': 50},
-    'upstream_http_x_mixcloud_view_name': {'title': 'URL Names', 'width': 50}
-}
+NGINX_LOG_EXTRA_VARIABLES = {}
 
 NGINX_LOG_FORMAT_VARIABLE_INDICES = {}
 
@@ -58,7 +55,7 @@ for index, variable in enumerate(shlex.split(NGINX_LOG_FORMAT.strip())):
         cleaned_variable = variable_re.search(variable).groups()[0]
     except AttributeError:
         pass
-    if cleaned_variable in NGINX_LOG_FORMAT_DEFAULT_VARIABLES.keys() or \
-       cleaned_variable in NGINX_LOG_FORMAT_EXTRA_VARIABLES.keys() or \
-       cleaned_variable == NGINX_LOG_FORMAT_REQUEST_VARIABLE:
+    if cleaned_variable in NGINX_LOG_DEFAULT_VARIABLES.keys() or \
+       cleaned_variable in NGINX_LOG_EXTRA_VARIABLES.keys() or \
+       cleaned_variable == NGINX_LOG_REQUEST_VARIABLE:
         NGINX_LOG_FORMAT_VARIABLE_INDICES[cleaned_variable] = index

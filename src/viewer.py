@@ -1,6 +1,5 @@
 import argparse
 import conf
-import shlex
 import subprocess
 import sys
 
@@ -51,11 +50,9 @@ class Viewer(object):
 
         while True:
             line = f.stdout.readline()
-            data = shlex.split(line.decode("utf-8"))
-
             # Grab the lock before we update our store as we don't want the data to change as we are painting.
             self.lock.acquire()
-            self.store.aggregate(data)
+            self.store.aggregate(line)
             self.lock.release()
 
 

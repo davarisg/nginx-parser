@@ -4,6 +4,7 @@ from collections import defaultdict
 from datetime import datetime
 
 
+# TODO: Handle `request` variable in Nginx log_format
 class Store(object):
     def __init__(self):
         self.log_lines = 0

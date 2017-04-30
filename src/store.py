@@ -1,3 +1,5 @@
+import conf
+
 from collections import defaultdict
 from datetime import datetime
 
@@ -6,18 +8,34 @@ class Store(object):
     def __init__(self):
         self.log_lines = 0
         self.detail = defaultdict(dict)
-        self.countries = defaultdict(int)
+        self.extra = defaultdict(dict)
         self.ips = defaultdict(int)
-        self.orgs = defaultdict(int)
         self.status_codes = defaultdict(int)
         self.referrers = defaultdict(int)
         self.rpm = defaultdict(int)
-        self.url_names = defaultdict(int)
         self.url_paths = defaultdict(int)
         self.user_agents = defaultdict(int)
 
         # Accumulators
         self.url_and_ips_by_status_code = []
+
+    def aggregate(self, data):
+        self.add_log_line()
+        self.add_ip(data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['remote_addr']])
+        self.add_referrer(data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['http_referer']])
+        self.add_rmp(data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['time_local']])
+        self.add_status_code(data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['status']])
+        self.add_url_path(data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['request_uri']])
+        self.add_user_agent(data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['http_user_agent']])
+
+        for extra_variable in conf.NGINX_LOG_FORMAT_EXTRA_VARIABLES.keys():
+            self.add_extra(extra_variable, data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES[extra_variable]])
+
+        self.add_detail(
+            data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['request_uri']],
+            data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['remote_addr']],
+            data[conf.NGINX_LOG_FORMAT_VARIABLE_INDICES['status']]
+        )
 
     def accumulate_details_page(self):
         url_and_ips_by_status_code = {}
@@ -39,17 +57,16 @@ class Store(object):
         if self.log_lines % 1000 == 0:
             self.accumulate_details_page()
 
-    def add_country(self, country):
-        self.countries[country] += 1
+    def add_extra(self, key, value):
+        if key not in self.extra:
+            self.extra[key] = defaultdict(int)
+        self.extra[key][value] += 1
 
     def add_ip(self, ip):
         self.ips[ip] += 1
 
     def add_log_line(self):
         self.log_lines += 1
-
-    def add_org(self, org):
-        self.orgs[org] += 1
 
     def add_referrer(self, referrer):
         self.referrers[referrer] += 1
@@ -61,9 +78,6 @@ class Store(object):
 
     def add_status_code(self, status_code):
         self.status_codes[status_code] += 1
-
-    def add_url_name(self, url_name):
-        self.url_names[url_name] += 1
 
     def add_url_path(self, url_path):
         self.url_paths[url_path] += 1

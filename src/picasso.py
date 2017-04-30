@@ -1,3 +1,4 @@
+import conf
 from conf import DETAILS_PAGE_NAME, USER_AGENT_PAGE_NAME, REFERRERS_PAGE_NAME, PAGES
 
 
@@ -92,41 +93,32 @@ class Picasso(object):
                     "%s -> %.2f%%" % (status_code, count / float(total) * 100)
                 )
 
-            print(self.terminal.move_y(3) + self.terminal.move_x(40) + self.terminal.bold("URL names:"))
-            total = sum(self.store.url_names.values())
-            for index, (url_name, count) in enumerate(sorted(self.store.url_names.items(), key=lambda k: k[1], reverse=True)[:max_columns - 2]):
-                print(
-                    self.terminal.move_y(4 + index) +
-                    self.terminal.move_x(23) +
-                    "%30s -> %.2f%%" % (url_name[:30], count / float(total) * 100)
-                )
-
-            print(self.terminal.move_y(3) + self.terminal.move_x(77) + self.terminal.bold("IPs:"))
-            total = sum(self.store.url_names.values())
+            print(self.terminal.move_y(3) + self.terminal.move_x(20) + self.terminal.bold("IPs:"))
+            total = sum(self.store.ips.values())
             for index, (ip, count) in enumerate(sorted(self.store.ips.items(), key=lambda k: k[1], reverse=True)[:max_columns - 2]):
                 print(
                     self.terminal.move_y(4 + index) +
-                    self.terminal.move_x(67) +
+                    self.terminal.move_x(20) +
                     "%16s -> %.2f%%" % (ip, count / float(total) * 100)
                 )
 
-            print(self.terminal.move_y(3) + self.terminal.move_x(107) + self.terminal.bold("ORGs:"))
-            total = sum(self.store.url_names.values())
-            for index, (org, count) in enumerate(sorted(self.store.orgs.items(), key=lambda k: k[1], reverse=True)[:max_columns - 2]):
-                print(
-                    self.terminal.move_y(4 + index) +
-                    self.terminal.move_x(97) +
-                    "%23s -> %.2f%%" % ("%s..." % org[:20] if len(org) > 20 else org, count / float(total) * 100)
-                )
+            current_x = 70
+            for variable in sorted(conf.NGINX_LOG_FORMAT_EXTRA_VARIABLES):
+                detail = conf.NGINX_LOG_FORMAT_EXTRA_VARIABLES[variable]
+                if variable not in self.store.extra:
+                    continue
+                print(self.terminal.move_y(3) + self.terminal.move_x(current_x + (detail['width'] // 2) - 10) + self.terminal.bold("%s:" % detail['title']))
+                total = sum(self.store.extra[variable].values())
+                for index, (value, count) in enumerate(
+                        sorted(self.store.extra[variable].items(), key=lambda k: k[1], reverse=True)[:max_columns - 2]):
+                    print(
+                        self.terminal.move_y(4 + index) +
+                        self.terminal.move_x(current_x) +
+                        "%s -> %.2f%%" % (value, count / float(total) * 100)
+                    )
 
-            print(self.terminal.move_y(3) + self.terminal.move_x(137) + self.terminal.bold("Countries:"))
-            total = sum(self.store.url_names.values())
-            for index, (country, count) in enumerate(sorted(self.store.countries.items(), key=lambda k: k[1], reverse=True)[:max_columns - 2]):
-                print(
-                    self.terminal.move_y(4 + index) +
-                    self.terminal.move_x(135) +
-                    "%4s -> %.2f%%" % (country, count / float(total) * 100)
-                )
+                current_x += detail['width']
+
 
         # Render footer
         text = ''

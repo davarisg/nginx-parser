@@ -1,28 +1,36 @@
 import argparse
-import conf
 import subprocess
 import sys
 
-from blessed import Terminal
+from .conf import PAGES, QUIT_KEY, NginxConfig
+from .picasso import Picasso
+from .store import Store
 
-from picasso import Picasso
-from store import Store
+from blessed import Terminal
 from threading import Thread, Lock
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-f', '--file', type=str, help='The path to the Nginx log file')
+parser.add_argument('-f', '--file', type=str, required=True, help='The path to the Nginx log file')
 parser.add_argument('-d', '--delay', type=int, default=1, help='Seconds to wait between updates')
 parser.add_argument('-n', type=str, default='1000', help='Number of lines to start tailing from')
+parser.add_argument('-c', '--config', type=str, help='The path to your YAML configuration file')
 args = parser.parse_args()
 
 
 class Parser(object):
     def __init__(self):
+        nginx_config = NginxConfig(args.config)
         self.lock = Lock()
-        self.store = Store()
+        self.store = Store(nginx_config)
         self.terminal = Terminal()
-        self.picasso = Picasso(args, self.lock, self.store, self.terminal)
+        self.picasso = Picasso(
+            args.file,
+            self.lock,
+            self.store,
+            self.terminal,
+            nginx_config.get_extra_variables()
+        )
 
     def start(self):
         thread = Thread(target=self.tail)
@@ -36,9 +44,9 @@ class Parser(object):
                 self.picasso.paint()
 
                 key = self.terminal.inkey(timeout=args.delay)
-                if key in conf.PAGES.keys():
-                    self.picasso.set_active_page(conf.PAGES[key])
-                if key == conf.QUIT_KEY:
+                if key in PAGES.keys():
+                    self.picasso.set_active_page(PAGES[key])
+                if key == QUIT_KEY:
                     sys.exit()
 
     def tail(self):
@@ -56,5 +64,9 @@ class Parser(object):
             self.lock.release()
 
 
-if __name__ == '__main__':
+def main():
     Parser().start()
+
+
+if __name__ == '__main__':
+    main()

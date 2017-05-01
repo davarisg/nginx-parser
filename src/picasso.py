@@ -1,4 +1,4 @@
-import conf
+from .conf import PAGES, USER_AGENT_PAGE_NAME, URL_PAGE_NAME, REFERRERS_PAGE_NAME, DETAILS_PAGE_NAME
 
 
 # TODO: Better visualizations/graph
@@ -8,9 +8,10 @@ LOW_THRESHOLD = 3
 
 
 class Picasso(object):
-    def __init__(self, args, lock, store, terminal):
-        self.active_page = conf.DETAILS_PAGE_NAME
-        self.args = args
+    def __init__(self, filename, lock, store, terminal, extra_variables):
+        self.active_page = DETAILS_PAGE_NAME
+        self.extra_variables = extra_variables
+        self.filename = filename
         self.max_rows = 0
         self.lock = lock
         self.store = store
@@ -48,7 +49,7 @@ class Picasso(object):
         print(self.terminal.clear())
         print(
             self.terminal.move_y(0) +
-            self.terminal.bold('Nginx viewer is tailing "%s"\n' % self.args.file) +
+            self.terminal.bold('Nginx viewer is tailing "%s"\n' % self.filename) +
             self.terminal.bold(
                 'Processed %d lines / %d requests per minute' % (
                     self.store.log_lines,
@@ -57,13 +58,13 @@ class Picasso(object):
             )
         )
 
-        if self.active_page == conf.USER_AGENT_PAGE_NAME:  # User Agent page
+        if self.active_page == USER_AGENT_PAGE_NAME:  # User Agent page
             self._paint_page('User agents', self.store.user_agents, max_x)
-        elif self.active_page == conf.URL_PAGE_NAME:  # URL page
+        elif self.active_page == URL_PAGE_NAME:  # URL page
             self._paint_page('URLs', self.store.url_paths, max_x)
-        elif self.active_page == conf.REFERRERS_PAGE_NAME:  # Referrers page
+        elif self.active_page == REFERRERS_PAGE_NAME:  # Referrers page
             self._paint_page('Referrers', self.store.referrers, max_x)
-        elif self.active_page == conf.DETAILS_PAGE_NAME:  # Details page
+        elif self.active_page == DETAILS_PAGE_NAME:  # Details page
             # Render column titles
             print(
                 self.terminal.move_y(3) +
@@ -95,8 +96,8 @@ class Picasso(object):
             self._paint_main_page_section('IP', self.store.ips, 50, 20)
 
             current_x = 70
-            for variable in sorted(conf.NGINX_LOG_EXTRA_VARIABLES):
-                detail = conf.NGINX_LOG_EXTRA_VARIABLES[variable]
+            for variable in sorted(self.extra_variables):
+                detail = self.extra_variables[variable]
                 if variable not in self.store.extra:
                     continue
                 self._paint_main_page_section(detail['title'], self.store.extra[variable], detail['width'], current_x)
@@ -149,9 +150,9 @@ class Picasso(object):
         :param max_y: The maximum height of the terminal window
         """
         text = ''
-        for page_key in sorted(conf.PAGES):
-            title = '%s: %s' % (page_key, conf.PAGES[page_key])
-            if self.active_page == conf.PAGES[page_key]:
+        for page_key in sorted(PAGES):
+            title = '%s: %s' % (page_key, PAGES[page_key])
+            if self.active_page == PAGES[page_key]:
                 text += self.terminal.bold(title)
             else:
                 text += title

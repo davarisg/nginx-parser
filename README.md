@@ -44,3 +44,8 @@ nginx:
 
 Then just use your config:
 `nginx-parser --file=/path/to/nginx/access.log -n 1000 --config=config.yaml`
+
+## TODO
+
+* Ability to filter by status_code/IP address/URL
+* Better visualizations

@@ -4,3 +4,8 @@
 venv/
 
 .DS_Store
+
+# setup.py generated folders
+build/
+dist/
+nginx_parser.egg-info/
